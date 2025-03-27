@@ -9,12 +9,22 @@ class Olist:
         Its keys should be 'sellers', 'orders', 'order_items' etc...
         Its values should be pandas.DataFrames loaded from csv files
         """
-        # Hints 1: Build csv_path as "absolute path" in order to call this method from anywhere.
-            # Do not hardcode your path as it only works on your machine ('Users/username/code...')
-            # Use __file__ instead as an absolute path anchor independant of your usename
-            # Make extensive use of `breakpoint()` to investigate what `__file__` variable is really
-        # Hint 2: Use os.path library to construct path independent of Mac vs. Unix vs. Windows specificities
-        pass  # YOUR CODE HERE
+        current_dir = os.path.dirname(__file__)
+        raw_path = os.path.join(current_dir, "../data/csv")
+        csv_path = os.path.abspath(raw_path)
+
+        file_names = list(os.listdir(csv_path))
+        key_names = [
+            file.replace(".csv", "").replace("olist_", "").replace("_dataset", "")
+            for file in file_names
+        ]
+
+        data = {}
+        for key, file in zip(key_names, file_names):
+            full_path = os.path.join(csv_path, file)
+            data[key] = pd.read_csv(full_path)
+
+        return data
 
     def ping(self):
         """
