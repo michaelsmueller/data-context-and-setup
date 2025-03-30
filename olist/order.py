@@ -56,7 +56,7 @@ class Order:
         expected_wait_time = orders["expected_wait_time"]
         orders["delay_vs_expected"] = np.maximum(wait_time - expected_wait_time, 0)
 
-        # return scolumns
+        # return columns
         return orders[
             [
                 "order_id",
@@ -72,28 +72,49 @@ class Order:
         Returns a DataFrame with:
         order_id, dim_is_five_star, dim_is_one_star, review_score
         """
-        pass  # YOUR CODE HERE
+        reviews = self.data["order_reviews"].copy()
+        reviews["dim_is_five_star"] = (reviews["review_score"] == 5).astype("int")
+        reviews["dim_is_one_star"] = (reviews["review_score"] == 1).astype("int")
+
+        return reviews[
+            ["order_id", "dim_is_five_star", "dim_is_one_star", "review_score"]
+        ]
 
     def get_number_items(self):
         """
         Returns a DataFrame with:
         order_id, number_of_items
         """
-        pass  # YOUR CODE HERE
+        order_items = self.data["order_items"].copy()
+        number_of_items = order_items.groupby("order_id")["order_item_id"].count()
+
+        return number_of_items.reset_index().rename(
+            columns={"order_item_id": "number_of_items"}
+        )
 
     def get_number_sellers(self):
         """
         Returns a DataFrame with:
         order_id, number_of_sellers
         """
-        pass  # YOUR CODE HERE
+        order_items = self.data["order_items"].copy()
+        number_of_sellers = order_items.groupby("order_id")["seller_id"].nunique()
+
+        return number_of_sellers.reset_index().rename(
+            columns={"seller_id": "number_of_sellers"}
+        )
 
     def get_price_and_freight(self):
         """
         Returns a DataFrame with:
         order_id, price, freight_value
         """
-        pass  # YOUR CODE HERE
+        order_items = self.data["order_items"].copy()
+        price_and_freight = order_items.groupby("order_id")[
+            "price", "freight_value"
+        ].sum()
+
+        return price_and_freight.reset_index()
 
     # Optional
     def get_distance_seller_customer(self):
@@ -111,5 +132,20 @@ class Order:
         'number_of_items', 'number_of_sellers', 'price', 'freight_value',
         'distance_seller_customer']
         """
-        # Hint: make sure to re-use your instance methods defined above
-        pass  # YOUR CODE HERE
+        wait_time = self.get_wait_time(is_delivered)
+        review_score = self.get_review_score()
+        get_number_items = self.get_number_items()
+        get_number_sellers = self.get_number_sellers()
+        get_price_and_freight = self.get_price_and_freight()
+
+        training_data = wait_time
+        dfs_to_merge = [
+            review_score,
+            get_number_items,
+            get_number_sellers,
+            get_price_and_freight,
+        ]
+        for df in dfs_to_merge:
+            training_data = training_data.merge(df, on="order_id")
+
+        return training_data.dropna()
