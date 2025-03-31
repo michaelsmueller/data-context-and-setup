@@ -24,7 +24,7 @@ class Order:
 
         # filter
         if is_delivered:
-            orders = orders.query("order_status == 'delivered'")
+            orders = orders.query("order_status == 'delivered'").copy()
 
         # convert to datetime
         datetime_columns = [
@@ -34,7 +34,7 @@ class Order:
             "order_delivered_customer_date",
             "order_estimated_delivery_date",
         ]
-        orders[datetime_columns] = orders[datetime_columns].apply(pd.to_datetime)
+        orders.loc[:, datetime_columns] = orders[datetime_columns].apply(pd.to_datetime)
 
         # set variables
         purchase_date = orders["order_purchase_timestamp"]
@@ -46,15 +46,17 @@ class Order:
             return (series1 - series2) / pd.Timedelta(days=1)
 
         # calculate wait times
-        orders["wait_time"] = calc_day_delta(delivery_date, purchase_date)
-        orders["expected_wait_time"] = calc_day_delta(
+        orders.loc[:, "wait_time"] = calc_day_delta(delivery_date, purchase_date)
+        orders.loc[:, "expected_wait_time"] = calc_day_delta(
             expected_delivery_date, purchase_date
         )
 
         # compare
         wait_time = orders["wait_time"]
         expected_wait_time = orders["expected_wait_time"]
-        orders["delay_vs_expected"] = np.maximum(wait_time - expected_wait_time, 0)
+        orders.loc[:, "delay_vs_expected"] = np.maximum(
+            wait_time - expected_wait_time, 0
+        )
 
         # return columns
         return orders[
@@ -73,8 +75,10 @@ class Order:
         order_id, dim_is_five_star, dim_is_one_star, review_score
         """
         reviews = self.data["order_reviews"].copy()
-        reviews["dim_is_five_star"] = (reviews["review_score"] == 5).astype("int")
-        reviews["dim_is_one_star"] = (reviews["review_score"] == 1).astype("int")
+        reviews.loc[:, "dim_is_five_star"] = (reviews["review_score"] == 5).astype(
+            "int"
+        )
+        reviews.loc[:, "dim_is_one_star"] = (reviews["review_score"] == 1).astype("int")
 
         return reviews[
             ["order_id", "dim_is_five_star", "dim_is_one_star", "review_score"]
@@ -111,7 +115,7 @@ class Order:
         """
         order_items = self.data["order_items"].copy()
         price_and_freight = order_items.groupby("order_id")[
-            "price", "freight_value"
+            ["price", "freight_value"]
         ].sum()
 
         return price_and_freight.reset_index()
