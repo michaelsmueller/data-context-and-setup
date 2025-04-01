@@ -96,7 +96,7 @@ class Seller:
         orders_sellers["date_first_sale"] = orders_sellers["order_approved_at"]
         orders_sellers["date_last_sale"] = orders_sellers["order_approved_at"]
         df = orders_sellers.groupby("seller_id").agg(
-            {"date_first_sale": min, "date_last_sale": max}
+            {"date_first_sale": "min", "date_last_sale": "max"}
         )
         df["months_on_olist"] = round(
             (df["date_last_sale"] - df["date_first_sale"]) / np.timedelta64(30, "D")
