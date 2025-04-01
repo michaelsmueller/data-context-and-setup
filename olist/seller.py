@@ -139,8 +139,41 @@ class Seller:
         Returns a DataFrame with:
         'seller_id', 'share_of_five_stars', 'share_of_one_stars', 'review_score'
         """
+        sellers = self.data["sellers"].copy()
+        order_items = self.data["order_items"][["seller_id", "order_id"]]
+        orders = self.order.get_review_score()
 
-        pass  # YOUR CODE HERE
+        sellers_orders = (
+            sellers.merge(order_items, on="seller_id")
+            .merge(orders, on="order_id")[
+                [
+                    "seller_id",
+                    "order_id",
+                    "dim_is_five_star",
+                    "dim_is_one_star",
+                    "review_score",
+                ]
+            ]
+            .drop_duplicates(["seller_id", "order_id"])
+        )
+
+        return (
+            sellers_orders.groupby("seller_id")
+            .agg(
+                {
+                    "dim_is_five_star": "mean",
+                    "dim_is_one_star": "mean",
+                    "review_score": "mean",
+                }
+            )
+            .reset_index()
+            .rename(
+                columns={
+                    "dim_is_five_star": "share_of_five_stars",
+                    "dim_is_one_star": "share_of_one_stars",
+                }
+            )
+        )
 
     def get_training_data(self):
         """
