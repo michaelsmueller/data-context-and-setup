@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from olist.data import Olist
 from olist.order import Order
+from olist.seller import Seller
 
 
 class Product:
@@ -10,6 +11,7 @@ class Product:
         olist = Olist()
         self.data = olist.get_data()
         self.order = Order()
+        self.seller = Seller()
 
     def get_product_features(self):
         """
@@ -178,7 +180,48 @@ class Product:
         columns = list(products.select_dtypes(exclude=["object"]).columns)
         agg_params = dict(zip(columns, [agg] * len(columns)))
         agg_params["quantity"] = "sum"
+        agg_params["sales"] = "sum"  # formerly calculating mean sales
+        agg_params["cost_of_reviews"] = "sum"
 
         product_cat = products.groupby("category").agg(agg_params)
         return product_cat
         # $CHALLENGIFY_END
+
+    def get_sellers_per_cat(self):
+        """
+        Returns a DataFrame with 'category' as index, and aggregating:
+        - 'n_sellers': number of sellers with this category as their primary category
+        - 'avg_months_on_olist': average months sellers have been active
+        """
+        products = self.get_product_features()[["product_id", "category"]]
+        order_items = self.data["order_items"][
+            ["product_id", "seller_id", "price"]
+        ].copy()
+        order_items_with_category = order_items.merge(products, on="product_id")
+        seller_category_sales = (
+            order_items_with_category.groupby(["seller_id", "category"])["price"]
+            .sum()
+            .reset_index()
+        )
+        seller_primary_category = seller_category_sales.loc[
+            seller_category_sales.groupby("seller_id")["price"].idxmax()
+        ]
+        sellers_per_category = (
+            seller_primary_category.groupby("category")["seller_id"]
+            .count()
+            .reset_index()
+        )
+        sellers_per_category.columns = ["category", "n_sellers"]
+        seller_dates = self.seller.get_active_dates().reset_index()
+        primary_with_dates = seller_primary_category.merge(
+            seller_dates[["seller_id", "months_on_olist"]], on="seller_id"
+        )
+        avg_months = (
+            primary_with_dates.groupby("category")["months_on_olist"]
+            .mean()
+            .reset_index()
+        )
+        avg_months.columns = ["category", "avg_months_on_olist"]
+        result = sellers_per_category.merge(avg_months, on="category")
+
+        return result
